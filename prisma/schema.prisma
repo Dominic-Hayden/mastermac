@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  phone         String?
+  accountType   String    @default("retail") // retail or wholesale
+  loyaltyPoints Int       @default(0)
+  tier          String    @default("bronze") // bronze, silver, gold, platinum
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]
+  reviews       Review[]
+  addresses     Address[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  street    String
+  city      String
+  parish    String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  name          String
+  slug          String     @unique
+  icon          String?
+  parentId      String?
+  parent        Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories Category[] @relation("CategoryHierarchy")
+  products      Product[]
+  createdAt     DateTime   @default(now())
+}
+
+model Product {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  description     String?
+  price           Float
+  wholesalePrice  Float?
+  minWholesaleQty Int?
+  sku             String?      @unique
+  weight          String?
+  ingredients     String?
+  allergens       String?
+  inStock         Boolean      @default(true)
+  stockQty        Int          @default(100)
+  categoryId      String?
+  category        Category?    @relation(fields: [categoryId], references: [id])
+  brand           String?
+  dietaryTags     String?      // JSON string of tags
+  images          ProductImage[]
+  nutritionalInfo NutritionalInfo?
+  reviews         Review[]
+  orderItems      OrderItem[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  isPrimary Boolean  @default(false)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model NutritionalInfo {
+  id           String  @id @default(cuid())
+  productId    String  @unique
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  servingSize  String
+  calories     Int
+  totalFat     String
+  saturatedFat String
+  cholesterol  String
+  sodium       String
+  totalCarbs   String
+  dietaryFiber String
+  sugars       String
+  protein      String
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String
+  verified  Boolean  @default(false)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id              String         @id @default(cuid())
+  orderNumber     String         @unique
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id])
+  customerEmail   String
+  customerName    String
+  customerPhone   String
+  shippingAddress String
+  deliveryMethod  String         // delivery or pickup
+  paymentMethod   String         // cod or bank
+  subtotal        Float
+  tax             Float
+  deliveryFee     Float
+  total           Float
+  status          String         @default("pending") // pending, confirmed, processing, shipped, delivered, cancelled
+  items           OrderItem[]
+  tracking        OrderTracking[]
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  name      String
+}
+
+model OrderTracking {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  message   String
+  location  String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  type      String   // order_confirmation, order_shipped, order_delivered, promotion
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  orderId   String?
+  createdAt DateTime @default(now())
+}
